@@ -167,28 +167,6 @@
             border-radius: 15px;
             text-align: left;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            position: relative;
-        }
-        
-        .combo-display {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.7);
-            color: #FFD700;
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: bold;
-            display: none;
-            z-index: 10;
-            font-family: 'Orbitron', monospace;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-        }
-        
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            100% { transform: scale(1.1); }
         }
         
         .tip-title {
@@ -575,7 +553,6 @@
                 </div>
                 
                 <div class="tip-box">
-                    <div class="combo-display" id="comboDisplay">COMBO x2!</div>
                     <div class="tip-title">💡 Brain Boost Tip</div>
                     <div class="tip-text" id="tipText">Tetris improves spatial reasoning and planning skills!</div>
                 </div>
@@ -694,15 +671,6 @@
         
         // Particle system for visual effects
         let particles = [];
-        
-        // Combo system for extra points
-        let comboCount = 0;
-        let lastClearTime = 0;
-        const COMBO_WINDOW = 2000; // 2 seconds to get another line clear for combo
-        
-        // Special effects
-        let flashEffect = 0; // Flash when lines clear
-        let shakeEffect = 0; // Screen shake when lines clear
         
         // ===== MUSIC SYSTEM =====
         let audioContext = null;
@@ -836,8 +804,6 @@
         
         function resetBoard() {
             board = Array(ROWS).fill(null).map(() => Array(COLS).fill(0));
-            comboCount = 0;
-            lastClearTime = 0;
         }
         
         function startGame() {
@@ -894,14 +860,6 @@
                 dropCounter = 0;
             }
             
-            // Update special effects
-            if (flashEffect > 0) {
-                flashEffect--;
-            }
-            if (shakeEffect > 0) {
-                shakeEffect--;
-            }
-            
             drawBoard();
             drawPiece();
             updateParticles();
@@ -915,23 +873,6 @@
             const blockWidth = canvas.width / COLS;
             const blockHeight = canvas.height / ROWS;
             
-            // Apply screen shake effect
-            let shakeX = 0;
-            let shakeY = 0;
-            if (shakeEffect > 0) {
-                shakeX = (Math.random() - 0.5) * 10;
-                shakeY = (Math.random() - 0.5) * 10;
-                canvas.style.transform = `translate(${shakeX}px, ${shakeY}px)`;
-            } else {
-                canvas.style.transform = 'translate(0, 0)';
-            }
-            
-            // Apply flash effect
-            if (flashEffect > 0) {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-            }
-            
             // Clear
             ctx.fillStyle = '#1a1a2e';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -941,7 +882,7 @@
             ctx.lineWidth = 1;
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
-                    ctx.strokeRect(c * blockWidth + shakeX, r * blockHeight + shakeY, blockWidth, blockHeight);
+                    ctx.strokeRect(c * blockWidth, r * blockHeight, blockWidth, blockHeight);
                 }
             }
             
@@ -949,7 +890,7 @@
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
                     if (board[r][c]) {
-                        drawBlock(c * blockWidth + shakeX, r * blockHeight + shakeY, blockWidth, blockHeight, board[r][c]);
+                        drawBlock(c * blockWidth, r * blockHeight, blockWidth, blockHeight, board[r][c]);
                     }
                 }
             }
@@ -1152,18 +1093,9 @@
         
         function clearLines() {
             let linesCleared = 0;
-            const currentTime = Date.now();
             
             for (let row = ROWS - 1; row >= 0; row--) {
                 if (board[row].every(cell => cell !== 0)) {
-                    // Check for combo
-                    if (currentTime - lastClearTime < COMBO_WINDOW) {
-                        comboCount++;
-                    } else {
-                        comboCount = 1;
-                    }
-                    lastClearTime = currentTime;
-                    
                     // Create particles for cleared line
                     for (let col = 0; col < COLS; col++) {
                         const blockWidth = canvas.width / COLS;
@@ -1181,17 +1113,9 @@
             }
             
             if (linesCleared > 0) {
-                // Calculate score with combo bonus
-                const basePoints = [0, 40, 100, 300, 1200];
-                const comboMultiplier = Math.min(comboCount, 10); // Max 10x multiplier
-                const points = basePoints[linesCleared] * level * comboMultiplier;
-                
-                score += points;
+                const points = [0, 40, 100, 300, 1200];
+                score += points[linesCleared] * level;
                 lines += linesCleared;
-                
-                // Trigger special effects
-                flashEffect = 10;
-                shakeEffect = 5;
                 
                 const newLevel = Math.floor(lines / LINES_PER_LEVEL) + 1;
                 if (newLevel > level && newLevel <= MAX_LEVEL) {
@@ -1199,9 +1123,6 @@
                 }
                 
                 updateDisplay();
-            } else {
-                // Reset combo if no lines were cleared
-                comboCount = 0;
             }
         }
         
@@ -1302,18 +1223,6 @@
             
             const progress = (lines % LINES_PER_LEVEL) / LINES_PER_LEVEL * 100;
             document.getElementById('progressBar').style.width = progress + '%';
-            
-            // Update combo display
-            const comboElement = document.getElementById('comboDisplay');
-            if (comboElement) {
-                if (comboCount > 1) {
-                    comboElement.textContent = `COMBO x${comboCount}!`;
-                    comboElement.style.display = 'block';
-                    comboElement.style.animation = 'pulse 0.5s infinite alternate';
-                } else {
-                    comboElement.style.display = 'none';
-                }
-            }
         }
         
         function showRandomTip() {
